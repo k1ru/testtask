@@ -1,0 +1,14 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+
+<suite name="Test task test Suite">
+    <test name="Search tests">
+        <classes>
+            <class name="com.arrival.search.SearchTest"/>
+        </classes>
+    </test>
+    <test name="Authorization tests">
+        <classes>
+            <class name="com.arrival.authorization.AuthorizationTest"/>
+        </classes>
+    </test>
+</suite>
