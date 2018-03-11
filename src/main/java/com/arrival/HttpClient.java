@@ -3,6 +3,7 @@ package com.arrival;
 import com.arrival.models.YandexLoginPage;
 import com.arrival.models.YandexResults;
 import lombok.SneakyThrows;
+import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -18,10 +19,15 @@ import java.util.Map;
 public class HttpClient {
     private static HttpClient instance;
     private Map<String, String> cookies = new HashMap<>();
+    private final String USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:25.0) Gecko/20100101 Firefox/25.0";
+    private final String REFERRER = "http://www.yandex.ru";
+    private final String YANDEX_AUTH_URL = "https://passport.yandex.ru/passport?mode=auth";
+    private final int REQUEST_TIMEOUT = 12000;
 
     private HttpClient() {
     }
 
+    @Synchronized
     public static HttpClient getInstance() {
         log.debug("Initiating HttpClient...");
         if (instance == null) {
@@ -36,9 +42,16 @@ public class HttpClient {
         query.put("text", searchPattern);
         query.put("lr", "2");
 
-        Connection.Response response = getRequest(url, query);
-        if (response == null) return new YandexResults(404, null, null, null);
+        Connection.Response response = sendRequest(url, query, Connection.Method.GET);
+        if (response == null) {
+            return new YandexResults(404, null, null, null);
+        }
 
+        return parseYandexPageContent(response);
+    }
+
+    @SneakyThrows
+    private YandexResults parseYandexPageContent(Connection.Response response) {
         Document doc = response.parse();
         Elements title = doc.getElementsByTag("title");
         Elements results = doc.getElementsByAttributeValueMatching("class", "serp-item");
@@ -52,21 +65,22 @@ public class HttpClient {
 
     @SneakyThrows
     public int getPageContent(String url) {
-        int statusCode = 404;
-        Connection.Response response = getRequest(url);
+        Connection.Response response = sendRequest(url, new HashMap<>(), Connection.Method.GET);
         if (response != null) {
-            cookies = response.cookies();
-            statusCode = response.statusCode();
-        }
-
-        return statusCode;
+            return response.statusCode();
+        } else return 404;
     }
 
     @SneakyThrows
     public YandexLoginPage doYandexLogin(Map<String, String> dataMap) {
-        Connection.Response response = postRequest("https://passport.yandex.ru/passport?mode=auth", dataMap);
-        int statusCode = response.statusCode();
+        Connection.Response response = sendRequest(YANDEX_AUTH_URL, dataMap, Connection.Method.POST);
 
+        return parseYandexLoginPage(response);
+    }
+
+    @SneakyThrows
+    private YandexLoginPage parseYandexLoginPage(Connection.Response response) {
+        int statusCode = response.statusCode();
         Document doc = response.parse();
         Element title = doc.getElementsByTag("title").first();
         Element userName = doc.getElementsByAttributeValue("class", "usermenu__user-name").first();
@@ -83,70 +97,21 @@ public class HttpClient {
     }
 
     @SneakyThrows
-    private Connection.Response getRequest(String url, Map<String, String> query) {
+    private Connection.Response sendRequest(String url, Map<String, String> dataMap, Connection.Method method) {
         Connection.Response response = null;
         try {
-            response = Jsoup.connect(url)
-                    .data(query)
+            Connection connection = Jsoup.connect(url)
                     .ignoreContentType(true)
-                    .userAgent("Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:25.0) Gecko/20100101 Firefox/25.0")
-                    .referrer("http://www.google.com")
-                    .timeout(12000)
+                    .userAgent(USER_AGENT)
                     .followRedirects(true)
-                    .method(Connection.Method.GET)
+                    .timeout(REQUEST_TIMEOUT)
+                    .referrer(REFERRER)
                     .cookies(cookies)
-                    .execute();
-        } catch (UnknownHostException e) {
-            log.error(e.toString());
-        }
-
-        if (response != null) {
-            log.debug(response.url().toString());
-            cookies = response.cookies();
-        }
-
-        return response;
-    }
-
-    @SneakyThrows
-    private Connection.Response getRequest(String url) {
-        Connection.Response response = null;
-        try {
-            response = Jsoup.connect(url)
-                    .ignoreContentType(true)
-                    .userAgent("Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:25.0) Gecko/20100101 Firefox/25.0")
-                    .referrer("http://www.google.com")
-                    .timeout(12000)
-                    .followRedirects(true)
-                    .method(Connection.Method.GET)
-                    .cookies(cookies)
-                    .execute();
-        } catch (UnknownHostException e) {
-            log.error(e.toString());
-        }
-
-        if (response != null) {
-            log.debug(response.url().toString());
-            cookies = response.cookies();
-        }
-
-        return response;
-    }
-
-    @SneakyThrows
-    private Connection.Response postRequest(String url, Map<String, String> dataMap) {
-        Connection.Response response = null;
-        try {
-            response = Jsoup.connect(url)
-                    .ignoreContentType(true)
-                    .userAgent("Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:25.0) Gecko/20100101 Firefox/25.0")
-                    .followRedirects(true)
-                    .timeout(12000)
-                    .referrer("yandex.ru")
-                    .data(dataMap)
-                    .cookies(cookies)
-                    .method(Connection.Method.POST)
-                    .execute();
+                    .method(method);
+            if (!dataMap.isEmpty()) {
+                connection.data(dataMap);
+            }
+            response = connection.execute();
         } catch (UnknownHostException e) {
             log.error(e.toString());
         }

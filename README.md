@@ -1,7 +1,7 @@
 #### Test yandex search and yandex authorization without Selenium
 ##### Precondition
-- `JDK 1.8` is installed and properly configured in your system
-- `Maven 3.5.3` is installed and properly configured in your system
+- `JDK 1.8.+` is installed and properly configured in your system
+- `Maven 3.5.+` is installed and properly configured in your system
 - `Lombok plugin` in case you use IntelliJIDEA
 ##### How to run tests
 - Unpack archive to some folder

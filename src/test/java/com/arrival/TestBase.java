@@ -5,14 +5,13 @@ import com.arrival.models.YandexResults;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-public class TestBase {
+public abstract class TestBase {
     private HttpClient httpClient;
 
 
@@ -20,11 +19,6 @@ public class TestBase {
     public void beforeClass() {
         log.debug("beforeClass");
         httpClient = HttpClient.getInstance();
-    }
-
-    @AfterClass
-    public void afterClass() {
-        log.debug("afterClass");
     }
 
     protected YandexResults getYandexResults(String url, String searchPattern) {
@@ -47,7 +41,9 @@ public class TestBase {
     protected int checkElements(Elements elements, String expectedString) {
         int count = 0;
         for (Element element : elements) {
-            if (expectedString.toLowerCase().contains(element.text().toLowerCase())) count++;
+            if (expectedString.toLowerCase().contains(element.text().toLowerCase())) {
+                count++;
+            }
         }
 
         return count;
@@ -55,8 +51,9 @@ public class TestBase {
 
     private String prepareUrl(String url) {
         String result = "https://" + url;
-        if (url.toLowerCase().contains("yandex")) result = "http://" + url + "/search/";
-        else result += "/";
+        if (url.toLowerCase().contains("yandex")) {
+            result = "http://" + url + "/search/";
+        } else result += "/";
 
         return result;
     }
